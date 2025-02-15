@@ -19,6 +19,22 @@ export function Chat({ courseId, lectureId }: ChatProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
 
+  const getChromaResults = async (chroma_input: string) => {
+    // THIS IS A PLACEHOLDER FUNCTION, NEEDS TO BE INTEGRATED 
+    // WITH CHROMA DB/API
+    console.log(chroma_input);
+    chroma_input = chroma_input.replace(/ /g, '+');
+    return "no information so far";
+  }
+
+  const getVLMresults = async (vlm_input: string) => {
+    // THIS IS A PLACEHOLDER FUNCTION, NEEDS TO BE INTEGRATED 
+    // WITH VLM API
+    vlm_input = vlm_input.replace(/ /g, '+');
+    console.log(vlm_input);
+    return "iVBORw0KGgoAAAANSUhEUgAAAQAAAAEACAIAAADTED8xAAADMElEQVR4nOzVwQnAIBQFQYXff81RUkQCOyDj1YOPnbXWPmeTRef+/3O/OyBjzh3CD95BfqICMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMO0TAAD//2Anhf4QtqobAAAAAElFTkSuQmCC";
+  }
+
   const handleSend = async () => {
     if (!input.trim()) return;
 
@@ -30,6 +46,8 @@ export function Chat({ courseId, lectureId }: ChatProps) {
       
     };
 
+    const chroma_db_results = await getChromaResults(input);
+    const vlmImage = await getVLMresults(input);
 
     setMessages([...messages, userMessage]);
     setInput('');
@@ -44,7 +62,11 @@ export function Chat({ courseId, lectureId }: ChatProps) {
         body: JSON.stringify({
           model: 'llama-3.1-sonar-small-128k-chat',
           messages: [
-            {role: 'system', content: 'Be precise and concise.'},
+            {role: 'system', content: [
+              {'type': 'text', 'text': 'Be precise and concise. You have both some context and an image to create your response.'},
+              {'type': 'text', 'text': 'Use this prior knowledge to answer the question' + chroma_db_results},
+              {'type': 'image', 'image':  vlmImage},
+            ]},
             {role: 'user', content: input},
           ],
           max_tokens: 123,
