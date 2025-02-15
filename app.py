@@ -63,6 +63,15 @@ def initialize_index():
 def search_vlm_index(query):
     return RAG.search(query=query, k=3)
 
+def get_embedding(text):
+    client = openai.OpenAI(api_key="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")
+    response = client.embeddings.create(
+        input=text,
+        model="text-embedding-ada-002"
+    )
+    return response.data[0].embedding
+
+
 @app.post("/add-to-db")
 async def add_to_db(body: dict):
     print(body['message']['data'])
@@ -86,7 +95,6 @@ async def add_to_index(upload_file: UploadFile):
     RAG.add_to_index(input_item=f"/temp_files_for_indexing/temp_frame_{num}.jpg", store_collection_with_index=True)
     os.remove(f"/temp_files_for_indexing/temp_frame_{num}.jpg")
     return {"message": "Successfully added to index"}
-
 
 @app.post("/convert-video")
 async def convert_video(body: dict):
@@ -116,3 +124,10 @@ async def convert_video(body: dict):
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/search_chroma")
+async def search_chroma(query: str):
+    client = chromadb.PersistentClient(path="./chroma_db")
+    query_vector = get_embedding(query)
+    results = collection.query(query_embeddings=[query_vector], n_results=10)
+    return {'data': [hit["text"] for hit in results["metadatas"][0]]}
