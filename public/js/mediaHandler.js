@@ -38,48 +38,60 @@ class MediaHandler {
     }
 
     static async setupMediaRecorders() {
-        // Only set up new recorders if they don't exist or are in inactive state
         if (!RTMSState.videoRecorder || RTMSState.videoRecorder.state === 'inactive') {
             const videoTrack = RTMSState.mediaStream.getVideoTracks()[0];
-            const audioTrack = RTMSState.mediaStream.getAudioTracks()[0];
-
-            // Log to both console and send to server for debugging
-            const logDebug = (msg) => {
-                console.log(msg);
-                if (RTMSState.mediaSocket?.readyState === WebSocket.OPEN) {
-                    RTMSState.mediaSocket.send(JSON.stringify({
-                        msg_type: "DEBUG_LOG",
-                        content: { message: msg }
-                    }));
-                }
-            };
-
-            logDebug('Setting up MediaRecorders');
-            logDebug(`Audio track: ${audioTrack?.label}`);
-            logDebug(`Audio track enabled: ${audioTrack?.enabled}`);
-
-            const videoStream = new MediaStream([videoTrack]);
-            const audioStream = new MediaStream([audioTrack]);
-
-            // Configure for more frequent chunks
-            const videoConfig = {
-                ...CONFIG.MEDIA.VIDEO_CONFIG,
-                timeslice: 200
-            };
             
-            const audioConfig = {
-                ...CONFIG.MEDIA.AUDIO_CONFIG,
-                timeslice: 20,
-                mimeType: 'audio/webm;codecs=opus'
-            };
+            // Create a canvas to capture frames
+            const canvas = document.createElement('canvas');
+            canvas.width = 1280;
+            canvas.height = 720;
+            const ctx = canvas.getContext('2d');
+            
+            // Create video element for frame capture
+            const videoElement = document.createElement('video');
+            videoElement.srcObject = new MediaStream([videoTrack]);
+            videoElement.play();
 
-            RTMSState.videoRecorder = new MediaRecorder(videoStream, videoConfig);
-            RTMSState.audioRecorder = new MediaRecorder(audioStream, audioConfig);
+            // Capture frames at regular intervals
+            RTMSState.frameCapture = setInterval(() => {
+                if (RTMSState.isStreamingEnabled) {
+                    ctx.drawImage(videoElement, 0, 0, canvas.width, canvas.height);
+                    
+                    // Get raw blob data
+                    canvas.toBlob(async (blob) => {
+                        if (blob) {
+                            try {
+                                const response = await fetch('http://localhost:8010/process-frame', {
+                                    method: 'POST',
+                                    headers: {
+                                        'Content-Type': 'image/jpeg'
+                                    },
+                                    body: blob
+                                });
 
-            logDebug(`Audio recorder state: ${RTMSState.audioRecorder.state}`);
-            logDebug(`Audio recorder mimeType: ${RTMSState.audioRecorder.mimeType}`);
+                                if (!response.ok) {
+                                    throw new Error(`HTTP error! status: ${response.status}`);
+                                }
 
-            this.setupRecorderEventHandlers();
+                                const result = await response.json();
+                                
+                                if (RTMSState.mediaSocket?.readyState === WebSocket.OPEN) {
+                                    RTMSState.mediaSocket.send(JSON.stringify({
+                                        msg_type: "MEDIA_DATA_VIDEO",
+                                        content: {
+                                            user_id: 0,
+                                            data: result.frame_data,
+                                            timestamp: Date.now()
+                                        }
+                                    }));
+                                }
+                            } catch (error) {
+                                console.error('Error sending frame:', error);
+                            }
+                        }
+                    }, 'image/jpeg', 0.85);
+                }
+            }, 1000 / 15); // 15 FPS
         }
     }
 

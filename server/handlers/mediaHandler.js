@@ -59,6 +59,10 @@ class MediaHandler {
             if (MediaHandler.isMediaDataMessage(message)) {
                 this.broadcastMediaData(message);
             }
+
+            if (message.msg_type === "MEDIA_DATA_TRANSCRIPT") {
+                console.log("Received transcript data:", message.content.data);
+            }
         } catch (error) {
             console.error("Error processing message on media channel:", error);
         }

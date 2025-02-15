@@ -7,8 +7,9 @@ const CONFIG = {
     },
     MEDIA: {
         VIDEO_CONFIG: {
-            mimeType: 'video/webm',
-            videoBitsPerSecond: 1000000
+            mimeType: 'video/webm;codecs=vp8',
+            videoBitsPerSecond: 1500000,
+            frameRate: 30
         },
         AUDIO_CONFIG: {
             mimeType: 'audio/webm',

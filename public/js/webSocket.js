@@ -148,6 +148,7 @@ class WebSocketHandler {
 
     static async sendMediaData(data, type) {
         try {
+
             const reader = new FileReader();
             
             reader.onloadend = async () => {
@@ -160,7 +161,29 @@ class WebSocketHandler {
                     
                     
                 } else if (type === "MEDIA_DATA_VIDEO") {
+                    console.log('Converting video data and here is the data', reader.result);
+                    
+                    const base64data = btoa(String.fromCharCode.apply(null, new Uint8Array(reader.result)));
+                    // SEND VIDEO PROCESSED DATA VIA API CALL POST REQUEST TO MEDIA SERVER
+                    console.log('DATA TO BE SENT', JSON.stringify({
+                        data: base64data
+                    }));
+                    const response = await fetch(`http://localhost:8010/convert-video`, {
+                        method: 'POST',
+                        body: JSON.stringify({
+                            data: base64data
+                        })
+                    });
+                    response.then(response => response.json())
+                    .then(data => {
+                        console.log('Video processed data', data);
+                    })
+                    .catch(error => {
+                        console.error('Error converting video:', error);
+                    });
                     processedData = await this.convertVideo(reader.result);
+                    
+
                     if (!processedData) return; // Skip if conversion failed
                     
                   
@@ -182,7 +205,7 @@ class WebSocketHandler {
             
             reader.readAsArrayBuffer(data);
         } catch (error) {
-            UIController.addSystemLog('Media', 'Error sending media data', { error: error.message });
+            console.error('Error in sendMediaData:', error);
         }
     }
 
@@ -262,34 +285,83 @@ class WebSocketHandler {
     }
 
     static async convertVideo(videoData) {
-        try {
-            // Create a video element to decode the WebM
-            const video = document.createElement('video');
-            video.autoplay = true;
-            video.muted = true;
-            
-            // Set up video source
-            const videoUrl = URL.createObjectURL(new Blob([videoData], { type: 'video/webm' }));
-            video.src = videoUrl;
-            
-            // Create canvas for frame extraction
-            const canvas = document.createElement('canvas');
-            canvas.width = 1280; // HD width
-            canvas.height = 720; // HD height
-            const ctx = canvas.getContext('2d');
-            
-            // Process current frame
-            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-            const jpegData = canvas.toDataURL('image/jpeg', 0.9);
-            
-            // Cleanup
-            URL.revokeObjectURL(videoUrl);
-            
-            return jpegData.split(',')[1]; // Return base64 data only
-        } catch (error) {
-            console.error("Error converting video:", error);
-            return null;
-        }
+        return new Promise((resolve, reject) => {
+            try {
+                // Create a video element to decode the WebM
+                const video = document.createElement('video');
+                video.autoplay = false;
+                video.muted = true;
+                video.playsInline = true;
+                
+                // Create canvas for frame extraction
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                
+                console.log('Starting video conversion');
+                
+                // Set video source before adding event listeners
+                const blob = new Blob([videoData], { 
+                    type: 'video/webm' 
+                });
+                console.log('Video blob size:', blob.size);
+                
+                // Debug the blob
+                const reader = new FileReader();
+                reader.onloadend = () => {
+                    const arrayBuffer = reader.result;
+                    const header = new Uint8Array(arrayBuffer.slice(0, 32));
+                    console.log('WebM header:', Array.from(header).map(b => b.toString(16).padStart(2, '0')).join(' '));
+                };
+                reader.readAsArrayBuffer(blob);
+
+                // Set up video element
+                video.addEventListener('loadedmetadata', () => {
+                    console.log(`Video dimensions: ${video.videoWidth}x${video.videoHeight}`);
+                    canvas.width = video.videoWidth || 1280;
+                    canvas.height = video.videoHeight || 720;
+                });
+
+                video.addEventListener('canplay', async () => {
+                    console.log('Video can play, capturing frame');
+                    
+                    try {
+                        // Draw the current frame
+                        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                        
+                        // Convert to JPEG
+                        const jpegData = canvas.toDataURL('image/jpeg', 0.9);
+                        
+                        // Debug: log first 100 chars of base64 data
+                        console.log('Frame captured, base64 preview:', jpegData.substring(0, 100));
+                        
+                        // Cleanup
+                        URL.revokeObjectURL(video.src);
+                        
+                        resolve(jpegData.split(',')[1]); // Return base64 data only
+                    } catch (drawError) {
+                        console.error('Error drawing video frame:', drawError);
+                        reject(drawError);
+                    }
+                });
+
+                // Handle errors
+                video.addEventListener('error', (e) => {
+                    console.error('Video loading error:', video.error);
+                    console.error('Error details:', {
+                        code: video.error.code,
+                        message: video.error.message
+                    });
+                    reject(new Error(`Video loading error: ${video.error.message}`));
+                });
+                
+                const videoUrl = URL.createObjectURL(blob);
+                video.src = videoUrl;
+
+            } catch (error) {
+                console.error('Video conversion error:', error);
+                reject(error);
+            }
+        });
     }
 
     static sendSessionStateUpdate(state, stopReason) {
