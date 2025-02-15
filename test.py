@@ -48,7 +48,7 @@ sentences = [
 for i, sentence in enumerate(sentences):
     collection.add(ids=[str(i)], embeddings=[get_embedding(sentence)], metadatas=[{"text": sentence}])
 
-print("✅ Sentences stored in ChromaDB!")
+print("Sentences stored in ChromaDB!")
 
 
 def search_similar(query):
@@ -59,9 +59,9 @@ def search_similar(query):
 query = "What are Newton's laws?"
 similar_sentences = search_similar(query)
 
-print("\n🔍 Top 10 Closest Sentences:")
+print("\nTop 10 Closest Sentences:")
 for sentence in similar_sentences:
-    print(f"🔹 {sentence}")
+    print(f"{sentence}")
 
 def delete_all_embeddings():
     client.delete_collection("sentences")  # Removes all embeddings
