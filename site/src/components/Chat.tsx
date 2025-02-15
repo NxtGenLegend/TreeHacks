@@ -22,8 +22,26 @@ export function Chat({ courseId, lectureId }: ChatProps) {
   const getChromaResults = async (chroma_input: string) => {
     // THIS IS A PLACEHOLDER FUNCTION, NEEDS TO BE INTEGRATED 
     // WITH CHROMA DB/API
+    try {
+      const response = await fetch("http://localhost:8000/search_chroma", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ query: chroma_input })
+      });
+  
+      if (!response.ok) {
+        throw new Error(`Error: ${response.status}`);
+      }
+  
+      const result = await response.json();
+      console.log("Search results:", result.data);
+      return result.data.join(", ");
+    } catch (error) {
+      console.error("Failed to search Chroma:", error.message);
+    }
     console.log(chroma_input);
-    chroma_input = chroma_input.replace(/ /g, '+');
     return "no information so far";
   }
 
