@@ -1,11 +1,8 @@
-import React, { useState } from 'react';
-import { Book, FileText, BrainCircuit, Timer, Upload, MessageSquare, X, ChevronLeft, ChevronRight, Trophy, ArrowLeft, Plus, Trash2 } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Book, FileText, Video, X, ChevronLeft, ChevronRight, ArrowLeft, Plus, Trash2, Pencil } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { ConceptDisplay } from './ConceptDisplay';
-import { NoteUploader } from './NoteUploader';
-import { Quiz } from './Quiz';
 import { Chat } from './Chat';
-import { ConceptDetails } from './ConceptDetails';
+import { NoteUploader } from './NoteUploader';
 import type { Course, Lecture } from '../types';
 
 interface CourseViewProps {
@@ -14,37 +11,90 @@ interface CourseViewProps {
   onUpdateQuizScore: (courseId: string, score: number) => void;
 }
 
-export function CourseView({ course, onUploadNote, onUpdateQuizScore }: CourseViewProps) {
+interface ZoomMeeting {
+  link: string;
+  lectureNumber: number;
+  title: string;
+}
+
+export function CourseView({ course, onUploadNote }: CourseViewProps) {
   const navigate = useNavigate();
   const [selectedLecture, setSelectedLecture] = useState<Lecture | null>(null);
-  const [activeConcept, setActiveConcept] = useState<string | null>(null);
-  const [showQuiz, setShowQuiz] = useState(false);
-  const [timeLimit, setTimeLimit] = useState(60); // minutes
-  const [showUploader, setShowUploader] = useState<'lecture' | 'exam' | 'general' | null>(null);
+  const [showUploader, setShowUploader] = useState<'lecture' | 'general' | null>(null);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [zoomMeetings, setZoomMeetings] = useState<Record<number, string>>({});
+  const [showZoomPrompt, setShowZoomPrompt] = useState(false);
+  const [editingLecture, setEditingLecture] = useState<Lecture | null>(null);
+  const [zoomForm, setZoomForm] = useState<ZoomMeeting>({
+    link: '',
+    lectureNumber: course.lectures.length + 1,
+    title: ''
+  });
+  const [createNewLecture, setCreateNewLecture] = useState(false);
 
-  const handleConceptClick = (concept: string) => {
-    setActiveConcept(concept === activeConcept ? null : concept);
-  };
+  // Set default lecture to Lecture 1
+  useEffect(() => {
+    if (course.lectures.length > 0 && !selectedLecture) {
+      setSelectedLecture(course.lectures[0]);
+    }
+  }, [course.lectures]);
 
-  const handleQuizComplete = (score: number) => {
-    onUpdateQuizScore(course.id, score);
-    setShowQuiz(false);
-  };
-
-  const handleAddLecture = () => {
-    const nextNumber = course.lectures.length + 1;
+  const handleAddLecture = (number: number, title: string) => {
     const newLecture: Lecture = {
       id: Date.now().toString(),
       courseId: course.id,
-      number: nextNumber,
-      title: `Lecture ${nextNumber}`,
+      number,
+      title,
       concepts: [],
       content: []
     };
 
-    course.lectures = [...course.lectures, newLecture];
+    // Insert the lecture in the correct position
+    const updatedLectures = [...course.lectures];
+    const insertIndex = updatedLectures.findIndex(l => l.number >= number);
+    
+    if (insertIndex === -1) {
+      updatedLectures.push(newLecture);
+    } else {
+      // Shift numbers of existing lectures
+      for (let i = insertIndex; i < updatedLectures.length; i++) {
+        updatedLectures[i].number++;
+      }
+      updatedLectures.splice(insertIndex, 0, newLecture);
+    }
+
+    course.lectures = updatedLectures;
     setSelectedLecture(newLecture);
+    return newLecture;
+  };
+
+  const handleUpdateLecture = (lecture: Lecture, newNumber: number, newTitle: string) => {
+    const updatedLectures = course.lectures.filter(l => l.id !== lecture.id);
+    
+    const updatedLecture = {
+      ...lecture,
+      number: newNumber,
+      title: newTitle
+    };
+
+    // Insert at the correct position
+    const insertIndex = updatedLectures.findIndex(l => l.number >= newNumber);
+    
+    if (insertIndex === -1) {
+      updatedLectures.push(updatedLecture);
+    } else {
+      updatedLectures.splice(insertIndex, 0, updatedLecture);
+    }
+
+    // Renumber all lectures
+    updatedLectures.sort((a, b) => a.number - b.number);
+    updatedLectures.forEach((lecture, idx) => {
+      lecture.number = idx + 1;
+    });
+
+    course.lectures = updatedLectures;
+    setSelectedLecture(updatedLecture);
+    setEditingLecture(null);
   };
 
   const handleDeleteLecture = (lecture: Lecture) => {
@@ -58,8 +108,34 @@ export function CourseView({ course, onUploadNote, onUpdateQuizScore }: CourseVi
     
     course.lectures = updatedLectures;
     if (selectedLecture?.id === lecture.id) {
-      setSelectedLecture(null);
+      setSelectedLecture(updatedLectures[0]); // Default back to Lecture 1
     }
+  };
+
+  const handleZoomSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    let targetLecture = course.lectures.find(l => l.number === zoomForm.lectureNumber);
+    
+    if (!targetLecture && createNewLecture) {
+      targetLecture = handleAddLecture(zoomForm.lectureNumber, zoomForm.title);
+    }
+
+    if (targetLecture) {
+      setZoomMeetings(prev => ({
+        ...prev,
+        [targetLecture!.number]: zoomForm.link
+      }));
+      setSelectedLecture(targetLecture);
+    }
+
+    setShowZoomPrompt(false);
+    setCreateNewLecture(false);
+    setZoomForm({
+      link: '',
+      lectureNumber: course.lectures.length + 1,
+      title: ''
+    });
   };
 
   return (
@@ -112,30 +188,92 @@ export function CourseView({ course, onUploadNote, onUpdateQuizScore }: CourseVi
           <div className="space-y-2">
             {course.lectures.map((lecture) => (
               <div key={lecture.id} className="group relative">
-                <button
-                  onClick={() => setSelectedLecture(lecture)}
-                  className={`w-full text-left px-4 py-2 rounded-lg transition-colors ${
-                    selectedLecture?.id === lecture.id
-                      ? 'bg-gradient-to-r from-violet-600 to-indigo-600 text-white'
-                      : 'text-slate-300 hover:bg-slate-800'
-                  }`}
-                >
-                  {isSidebarCollapsed ? lecture.number : `Lecture ${lecture.number}`}
-                </button>
-                {!isSidebarCollapsed && lecture.number !== 1 && (
-                  <button
-                    onClick={() => handleDeleteLecture(lecture)}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:text-red-400"
+                {editingLecture?.id === lecture.id ? (
+                  <form
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      const form = e.target as HTMLFormElement;
+                      const number = parseInt(form.lectureNumber.value);
+                      const title = form.lectureTitle.value;
+                      handleUpdateLecture(lecture, number, title);
+                    }}
+                    className="flex flex-col space-y-2 p-2 bg-slate-800 rounded-lg"
                   >
-                    <Trash2 className="w-4 h-4" />
+                    <input
+                      name="lectureNumber"
+                      type="number"
+                      defaultValue={lecture.number}
+                      min="1"
+                      className="px-2 py-1 bg-slate-700 border border-slate-600 rounded text-white text-sm"
+                      placeholder="Number"
+                    />
+                    <input
+                      name="lectureTitle"
+                      type="text"
+                      defaultValue={lecture.title.replace(`Lecture ${lecture.number} - `, '')}
+                      className="px-2 py-1 bg-slate-700 border border-slate-600 rounded text-white text-sm"
+                      placeholder="Title"
+                    />
+                    <div className="flex justify-end space-x-2">
+                      <button
+                        type="button"
+                        onClick={() => setEditingLecture(null)}
+                        className="px-2 py-1 text-sm text-slate-400 hover:text-white"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="submit"
+                        className="px-2 py-1 text-sm bg-violet-600 text-white rounded hover:bg-violet-700"
+                      >
+                        Save
+                      </button>
+                    </div>
+                  </form>
+                ) : (
+                  <button
+                    onClick={() => setSelectedLecture(lecture)}
+                    className={`w-full text-left px-4 py-2 rounded-lg transition-colors ${
+                      selectedLecture?.id === lecture.id
+                        ? 'bg-gradient-to-r from-violet-600 to-indigo-600 text-white'
+                        : 'text-slate-300 hover:bg-slate-800'
+                    }`}
+                  >
+                    {isSidebarCollapsed ? lecture.number : `Lecture ${lecture.number} - ${lecture.title.replace(`Lecture ${lecture.number} - `, '')}`}
                   </button>
+                )}
+                {!isSidebarCollapsed && !editingLecture && (
+                  <div className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity flex space-x-1">
+                    <button
+                      onClick={() => setEditingLecture(lecture)}
+                      className="p-1 hover:text-violet-400"
+                    >
+                      <Pencil className="w-4 h-4" />
+                    </button>
+                    {lecture.number !== 1 && (
+                      <button
+                        onClick={() => handleDeleteLecture(lecture)}
+                        className="p-1 hover:text-red-400"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
                 )}
               </div>
             ))}
           </div>
           {!isSidebarCollapsed && (
             <button
-              onClick={handleAddLecture}
+              onClick={() => {
+                setCreateNewLecture(true);
+                setZoomForm(prev => ({
+                  ...prev,
+                  lectureNumber: course.lectures.length + 1,
+                  title: ''
+                }));
+                setShowZoomPrompt(true);
+              }}
               className="w-full mt-4 flex items-center justify-center px-4 py-2 text-slate-300 hover:bg-slate-800 rounded-lg transition-colors border border-dashed border-slate-700"
             >
               <Plus className="w-5 h-5 mr-2" />
@@ -147,18 +285,14 @@ export function CourseView({ course, onUploadNote, onUpdateQuizScore }: CourseVi
         {!isSidebarCollapsed && (
           <div className="p-4 border-t border-slate-700/50 space-y-2">
             <button
-              onClick={() => setShowQuiz(true)}
+              onClick={() => {
+                setCreateNewLecture(false);
+                setShowZoomPrompt(true);
+              }}
               className="w-full flex items-center px-4 py-2 text-slate-300 hover:bg-slate-800 rounded-lg transition-colors"
             >
-              <BrainCircuit className="w-5 h-5 mr-3" />
-              Take Sample Exam
-            </button>
-            <button
-              onClick={() => setShowUploader('exam')}
-              className="w-full flex items-center px-4 py-2 text-slate-300 hover:bg-slate-800 rounded-lg transition-colors"
-            >
-              <Upload className="w-5 h-5 mr-3" />
-              Upload Sample Exam
+              <Video className="w-5 h-5 mr-3" />
+              Join Zoom Meeting
             </button>
             <button
               onClick={() => setShowUploader('general')}
@@ -173,65 +307,37 @@ export function CourseView({ course, onUploadNote, onUpdateQuizScore }: CourseVi
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col overflow-hidden">
-        {selectedLecture ? (
+        {selectedLecture && (
           <>
             {/* Lecture Header */}
             <div className="p-6 border-b border-slate-700/50">
-              <div className="flex justify-between items-center mb-4">
+              <div className="flex justify-between items-center">
                 <h3 className="text-xl font-semibold text-white">
-                  Lecture {selectedLecture.number}: {selectedLecture.title}
+                  Lecture {selectedLecture.number} - {selectedLecture.title.replace(`Lecture ${selectedLecture.number} - `, '')}
                 </h3>
-                <div className="flex items-center space-x-4">
-                  {course.highestQuizScore && (
-                    <div className="flex items-center px-3 py-1.5 bg-gradient-to-r from-amber-500/10 to-yellow-500/10 rounded-lg border border-amber-500/20">
-                      <Trophy className="w-4 h-4 text-amber-400 mr-2" />
-                      <span className="text-amber-300 font-medium">Best Score: {course.highestQuizScore}%</span>
-                    </div>
-                  )}
-                  <button
-                    onClick={() => setSelectedLecture(null)}
-                    className="flex items-center text-slate-400 hover:text-white transition-colors"
-                  >
-                    <X className="w-5 h-5 mr-2" />
-                    Close Lecture
-                  </button>
-                </div>
               </div>
-              <ConceptDisplay
-                concepts={selectedLecture.concepts}
-                onConceptClick={handleConceptClick}
-                activeConcept={activeConcept || undefined}
-              />
             </div>
 
             {/* Lecture Content and Chat */}
             <div className="flex-1 p-6 overflow-hidden">
               <div className="h-full flex gap-6">
-                {/* Left Column: Concept Details */}
-                <div 
-                  className={`overflow-hidden transition-all duration-500 ease-in-out ${
-                    activeConcept 
-                      ? 'w-1/2 opacity-100 translate-x-0' 
-                      : 'w-0 opacity-0 -translate-x-full'
-                  }`}
-                >
-                  {activeConcept && (
-                    <div className="h-full">
-                      <ConceptDetails
-                        concept={activeConcept}
-                        content={selectedLecture.content}
-                        onClose={() => setActiveConcept(null)}
-                      />
-                    </div>
+                {/* Left Column: Zoom Meeting */}
+                <div className={`w-1/2 bg-slate-800/50 rounded-xl overflow-hidden ${
+                  !zoomMeetings[selectedLecture.number] && 'hidden'
+                }`}>
+                  {zoomMeetings[selectedLecture.number] && (
+                    <iframe
+                      src={zoomMeetings[selectedLecture.number]}
+                      allow="camera; microphone; fullscreen; display-capture; autoplay"
+                      className="w-full h-full"
+                    />
                   )}
                 </div>
                 
                 {/* Right Column: Chat */}
-                <div 
-                  className={`overflow-hidden bg-slate-800/50 rounded-xl transition-all duration-500 ease-in-out ${
-                    activeConcept ? 'w-1/2' : 'w-full'
-                  }`}
-                >
+                <div className={`overflow-hidden bg-slate-800/50 rounded-xl transition-all duration-500 ease-in-out ${
+                  zoomMeetings[selectedLecture.number] ? 'w-1/2' : 'w-full'
+                }`}>
                   <Chat
                     courseId={course.id}
                     lectureId={selectedLecture.id}
@@ -240,89 +346,113 @@ export function CourseView({ course, onUploadNote, onUpdateQuizScore }: CourseVi
               </div>
             </div>
           </>
-        ) : (
-          <>
-            {/* Course Overview */}
-            <div className="p-6 border-b border-slate-700/50">
-              <div className="flex justify-between items-center">
-                <h3 className="text-xl font-semibold text-white">{course.name}</h3>
-                {course.highestQuizScore && (
-                  <div className="flex items-center px-3 py-1.5 bg-gradient-to-r from-amber-500/10 to-yellow-500/10 rounded-lg border border-amber-500/20">
-                    <Trophy className="w-4 h-4 text-amber-400 mr-2" />
-                    <span className="text-amber-300 font-medium">Best Score: {course.highestQuizScore}%</span>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Course Chat */}
-            <div className="flex-1 p-6">
-              <div className="h-full bg-slate-800/50 rounded-xl overflow-hidden">
-                <Chat courseId={course.id} />
-              </div>
-            </div>
-          </>
         )}
       </div>
 
-      {/* Modals */}
-      {showQuiz && (
+      {/* Zoom Link Modal */}
+      {showZoomPrompt && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-auto">
+          <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl shadow-2xl max-w-md w-full">
             <div className="p-6 border-b border-slate-700/50">
               <div className="flex justify-between items-center">
-                <div className="flex items-center space-x-4">
-                  <h3 className="text-xl font-semibold text-white">Sample Exam</h3>
-                  {course.highestQuizScore && (
-                    <div className="flex items-center px-3 py-1.5 bg-gradient-to-r from-amber-500/10 to-yellow-500/10 rounded-lg border border-amber-500/20">
-                      <Trophy className="w-4 h-4 text-amber-400 mr-2" />
-                      <span className="text-amber-300 font-medium">Best: {course.highestQuizScore}%</span>
-                    </div>
-                  )}
+                <h3 className="text-xl font-semibold text-white">
+                  {createNewLecture ? 'Create New Lecture' : 'Join Zoom Meeting'}
+                </h3>
+                <button
+                  onClick={() => {
+                    setShowZoomPrompt(false);
+                    setCreateNewLecture(false);
+                  }}
+                  className="text-slate-400 hover:text-white"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+            <form onSubmit={handleZoomSubmit} className="p-6">
+              <div className="space-y-4">
+                <div>
+                  <label htmlFor="lectureNumber" className="block text-sm font-medium text-slate-300 mb-1">
+                    Lecture Number
+                  </label>
+                  <input
+                    type="number"
+                    id="lectureNumber"
+                    min="1"
+                    value={zoomForm.lectureNumber}
+                    onChange={(e) => setZoomForm(prev => ({ ...prev, lectureNumber: parseInt(e.target.value) }))}
+                    className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:ring-2 focus:ring-violet-500 focus:border-transparent"
+                    required
+                  />
                 </div>
-                <div className="flex items-center space-x-4">
-                  <div className="flex items-center">
-                    <Timer className="w-5 h-5 text-slate-400 mr-2" />
+                {(createNewLecture || !course.lectures.find(l => l.number === zoomForm.lectureNumber)) && (
+                  <div>
+                    <label htmlFor="lectureTitle" className="block text-sm font-medium text-slate-300 mb-1">
+                      Lecture Title
+                    </label>
                     <input
-                      type="number"
-                      value={timeLimit}
-                      onChange={(e) => setTimeLimit(parseInt(e.target.value))}
-                      className="w-20 px-2 py-1 bg-slate-700 border border-slate-600 rounded text-white"
+                      type="text"
+                      id="lectureTitle"
+                      value={zoomForm.title}
+                      onChange={(e) => setZoomForm(prev => ({ ...prev, title: e.target.value }))}
+                      className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:ring-2 focus:ring-violet-500 focus:border-transparent"
+                      placeholder="e.g., Introduction to Thermodynamics"
+                      required={createNewLecture}
                     />
-                    <span className="ml-2 text-slate-300">minutes</span>
                   </div>
+                )}
+                <div>
+                  <label htmlFor="zoomLink" className="block text-sm font-medium text-slate-300 mb-1">
+                    Zoom Meeting URL
+                  </label>
+                  <input
+                    type="url"
+                    id="zoomLink"
+                    value={zoomForm.link}
+                    onChange={(e) => setZoomForm(prev => ({ ...prev, link: e.target.value }))}
+                    placeholder="https://zoom.us/j/..."
+                    className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:ring-2 focus:ring-violet-500 focus:border-transparent"
+                    required
+                  />
+                </div>
+                <div className="flex justify-end space-x-4">
                   <button
-                    onClick={() => setShowQuiz(false)}
-                    className="text-slate-400 hover:text-white"
+                    type="button"
+                    onClick={() => {
+                      setShowZoomPrompt(false);
+                      setCreateNewLecture(false);
+                    }}
+                    className="px-4 py-2 text-slate-300 hover:text-white transition-colors"
                   >
-                    Close
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-6 py-2 bg-gradient-to-r from-violet-600 to-indigo-600 text-white rounded-lg hover:from-violet-700 hover:to-indigo-700 transition-colors"
+                  >
+                    {createNewLecture ? 'Create & Join' : 'Join Meeting'}
                   </button>
                 </div>
               </div>
-            </div>
-            <div className="p-6">
-              <Quiz
-                timeLimit={timeLimit * 60}
-                onComplete={handleQuizComplete}
-              />
-            </div>
+            </form>
           </div>
         </div>
       )}
 
+      {/* Note Uploader Modal */}
       {showUploader && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
           <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl shadow-2xl max-w-xl w-full">
             <div className="p-6 border-b border-slate-700/50">
               <div className="flex justify-between items-center">
                 <h3 className="text-xl font-semibold text-white">
-                  Upload {showUploader === 'exam' ? 'Sample Exam' : 'Course Notes'}
+                  Upload Course Notes
                 </h3>
                 <button
                   onClick={() => setShowUploader(null)}
                   className="text-slate-400 hover:text-white"
                 >
-                  Close
+                  <X className="w-5 h-5" />
                 </button>
               </div>
             </div>
