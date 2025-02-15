@@ -23,12 +23,11 @@ export function Chat({ courseId, lectureId }: ChatProps) {
     // THIS IS A PLACEHOLDER FUNCTION, NEEDS TO BE INTEGRATED 
     // WITH CHROMA DB/API
     try {
-      const response = await fetch("http://localhost:8000/search_chroma", {
+      const response = await fetch("http://localhost:8000/search_chroma?query="+chroma_input, {
         method: "POST",
         headers: {
           "Content-Type": "application/json"
-        },
-        body: JSON.stringify({ query: chroma_input })
+        }
       });
   
       if (!response.ok) {
