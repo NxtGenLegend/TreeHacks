@@ -1,0 +1,121 @@
+<!doctype html>
+<html>
+    <head>
+        <title>Video Meeting</title>
+        <link rel="stylesheet" href="/css/styles.css">
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    </head>
+    <body>
+        <div class="container">
+            <div class="main-content">
+                <div class="meeting-header">
+                    <h2 class="meeting-title">RTMS Mock Server</h2>
+                </div>
+
+                <div class="form-group">
+                    <div class="url-container">
+                        <label>Provide Webhook URL. To know more about Zoom Webhooks, visit <a href="https://developers.zoom.us/docs/api/webhooks/" target="_blank">here</a>.</label>
+
+                        <input type="text" id="webhookUrl" placeholder="Enter Webhook URL" />
+                        <button id="validateBtn">
+                            <i class="fas fa-check-circle"></i> Validate
+                        </button>
+                    </div>
+                </div>
+
+                <div class="video-container">
+                    <video id="mediaVideo" autoplay playsinline muted></video>
+                    <audio id="mediaAudio" autoplay></audio>
+                </div>
+
+                <div class="controls">
+                    <button id="sendBtn" disabled>
+                        <i class="fas fa-video"></i> Start Meeting
+                    </button>
+                    <button id="pauseBtn" disabled>
+                        <i class="fas fa-pause"></i> Pause RTMS
+                    </button>
+                    <button id="resumeBtn" disabled>
+                        <i class="fas fa-play"></i> Resume RTMS
+                    </button>
+                    <button id="stopBtn" disabled>
+                        <i class="fas fa-stop"></i> Stop RTMS
+                    </button>
+                    <button id="startRtmsBtn" disabled>
+                        <i class="fas fa-play-circle"></i> Start RTMS
+                    </button>
+                    <button id="endBtn" disabled>
+                        <i class="fas fa-phone-slash"></i> End Meeting
+                    </button>
+                </div>
+            </div>
+
+            <div class="sidebar">
+                <div class="log-tabs">
+                    <button class="tab-button active" data-tab="transcripts">Transcripts</button>
+                    <button class="tab-button" data-tab="logs">Logs</button>
+                </div>
+
+                <div id="transcripts-container" class="logs-container">
+                    <div id="transcript"></div>
+                </div>
+
+                <div id="logs-container" class="logs-container" style="display: none;">
+                    <div id="system-logs"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Configuration -->
+        <script src="/js/config.js"></script>
+        
+        <!-- API Handler -->
+        <script src="/js/api.js"></script>
+        
+        <!-- Core functionality -->
+        <script src="/js/mediaHandler.js"></script>
+        <script src="/js/webSocket.js"></script>
+        
+        <!-- UI and Controls -->
+        <script src="/js/uiController.js"></script>
+
+        <!-- Audio Processing -->
+        <script src="/js/audio-processor.js"></script>
+
+        <script>
+            // Handle tabs
+            document.querySelectorAll('.tab-button').forEach(button => {
+                button.addEventListener('click', () => {
+                    // Update active tab
+                    document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+                    button.classList.add('active');
+
+                    // Show/hide containers
+                    const tabName = button.dataset.tab;
+                    document.getElementById('transcripts-container').style.display = 
+                        tabName === 'transcripts' ? 'block' : 'none';
+                    document.getElementById('logs-container').style.display = 
+                        tabName === 'logs' ? 'block' : 'none';
+                });
+            });
+
+            // Function to add transcript
+            function addTranscript(text) {
+                const transcriptDiv = document.getElementById('transcript');
+                const entry = document.createElement('div');
+                entry.className = 'transcript-entry';
+                
+                const timestamp = document.createElement('div');
+                timestamp.className = 'transcript-timestamp';
+                timestamp.textContent = new Date().toLocaleTimeString();
+                
+                const content = document.createElement('div');
+                content.textContent = text;
+                
+                entry.appendChild(timestamp);
+                entry.appendChild(content);
+                transcriptDiv.appendChild(entry);
+            }
+        </script>
+    </body>
+</html>

@@ -1,0 +1,13 @@
+version: '3.8'
+
+services:
+  rtms-mock:
+    build: .
+    ports:
+      - "9092:9092"  # Handshake server
+      - "8081:8081"  # Media server
+    volumes:
+      - ./data:/usr/src/app/data
+    environment:
+      - NODE_ENV=production
+    restart: unless-stopped 

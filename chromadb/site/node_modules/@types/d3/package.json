@@ -1,0 +1,50 @@
+{
+    "name": "@types/d3",
+    "version": "3.5.53",
+    "description": "TypeScript definitions for d3",
+    "homepage": "https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/d3",
+    "license": "MIT",
+    "contributors": [
+        {
+            "name": "Alex Ford",
+            "githubUsername": "gustavderdrache",
+            "url": "https://github.com/gustavderdrache"
+        },
+        {
+            "name": "Boris Yankov",
+            "githubUsername": "borisyankov",
+            "url": "https://github.com/borisyankov"
+        },
+        {
+            "name": "Matthias Jobst",
+            "githubUsername": "MatthiasJobst",
+            "url": "https://github.com/MatthiasJobst"
+        },
+        {
+            "name": "Nithyanandam Venu",
+            "githubUsername": "vbinithyanandamv",
+            "url": "https://github.com/vbinithyanandamv"
+        },
+        {
+            "name": "Mihai Cherej",
+            "githubUsername": "cronco",
+            "url": "https://github.com/cronco"
+        },
+        {
+            "name": "Nathan Bierema",
+            "githubUsername": "Methuselah96",
+            "url": "https://github.com/Methuselah96"
+        }
+    ],
+    "main": "",
+    "types": "index.d.ts",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/DefinitelyTyped/DefinitelyTyped.git",
+        "directory": "types/d3"
+    },
+    "scripts": {},
+    "dependencies": {},
+    "typesPublisherContentHash": "cbe3469b67d1d64be14fe02b8d38c53af14caa5fd7e49956bc930b2738fe3a2f",
+    "typeScriptVersion": "4.5"
+}
