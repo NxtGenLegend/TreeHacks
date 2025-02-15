@@ -1,0 +1,29 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  .prose {
+    @apply text-slate-300;
+  }
+  
+  .prose h1, .prose h2, .prose h3, .prose h4 {
+    @apply text-white;
+  }
+  
+  .prose code {
+    @apply text-violet-400 bg-slate-800/50 px-1.5 py-0.5 rounded;
+  }
+  
+  .prose a {
+    @apply text-violet-400 hover:text-violet-300;
+  }
+  
+  .prose blockquote {
+    @apply border-l-4 border-violet-500 bg-slate-800/30;
+  }
+  
+  .prose strong {
+    @apply text-white;
+  }
+}
