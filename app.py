@@ -132,3 +132,47 @@ async def search_chroma(query: str):
     query_vector = get_embedding(query)
     results = collection.query(query_embeddings=[query_vector], n_results=10)
     return {'data': [hit["text"] for hit in results["metadatas"][0]]}
+
+
+UPLOAD_FOLDER = 'uploads/'
+GLOBAL_FILE = 1
+
+@app.on_event("startup")
+def init(device='mps', verbose=0):
+    global UPLOAD_FOLDER
+    UPLOAD_FOLDER = "uploads"
+    os.makedirs(UPLOAD_FOLDER, exist_ok=True)\
+
+@app.post("/upload_image")
+async def add_document_to_image(file: UploadFile = File(...)):
+    global GLOBAL_FILE
+    file_path = os.path.join(UPLOAD_FOLDER, f"image_{GLOBAL_FILE}.png")
+    try:
+        contents = file.file.read()
+        with open(file_path, 'wb') as f:
+            f.write(contents)
+    except Exception:
+        raise {'status_code': 500, 'detail': 'Something went wrong'}
+    finally:
+        file.file.close()
+
+    GLOBAL_FILE += 1
+
+    RAG.index(
+        input_path=file_path,
+        index_name="zoom_query_path",
+        store_collection_with_index=True,
+        overwrite=True
+    )
+
+    return {"filename": file.filename, "uploaded": True}
+
+@app.post("/query_vlm")
+async def search2(query: str):
+    images = search_vlm_index(query)
+    print(images)
+    if len(images) == 0:
+        print("image length is None")
+        return { 'data': None }
+    
+    return { 'data': images}
