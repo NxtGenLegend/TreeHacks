@@ -16,7 +16,7 @@ class VideoFrame(BaseModel):
     timestamp: int
 
 
-RAG = RAGMultiModalModel.from_pretrained(pretrained_model_name_or_path="/Users/yahiasalman/Desktop/RetainAll/RetainBackend/app/models/colqwen2-v1.0", index_root="./index", device="mps")
+RAG = RAGMultiModalModel.from_pretrained(pretrained_model_name_or_path="vidore/colqwen2-v1.0", index_root="./index", device="mps")
 # RAG.index(input_path="./saved_frame.jpg", index_name="TreeIndex")
 
 seen = set()
@@ -127,7 +127,8 @@ async def convert_video(body: dict):
 
 @app.post("/search_chroma")
 async def search_chroma(query: str):
-    client = chromadb.PersistentClient(path="./chroma_db")
+    global client
+    global collection
     query_vector = get_embedding(query)
     results = collection.query(query_embeddings=[query_vector], n_results=10)
     return {'data': [hit["text"] for hit in results["metadatas"][0]]}
