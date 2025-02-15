@@ -1,10 +1,12 @@
 export interface Course {
   id: string;
   name: string;
-  description: string;
+  startDate: string;
+  endDate: string;
   progress: number;
   concepts: string[];
   lectures: Lecture[];
+  highestQuizScore?: number;
 }
 
 export interface Lecture {
@@ -36,7 +38,7 @@ export interface Question {
   id: string;
   question: string;
   options?: string[];
-  correctAnswer: string;
+  correctAnswer: string | number;
   type: 'mcq' | 'text';
   explanation?: string;
 }

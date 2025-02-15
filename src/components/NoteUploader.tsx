@@ -21,16 +21,20 @@ export function NoteUploader({ courseId, onUpload }: NoteUploaderProps) {
   return (
     <div
       {...getRootProps()}
-      className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center cursor-pointer hover:border-indigo-500 transition-colors"
+      className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors ${
+        isDragActive 
+          ? 'border-violet-500 bg-violet-500/10' 
+          : 'border-slate-700 hover:border-violet-500 bg-slate-800/50'
+      }`}
     >
       <input {...getInputProps()} />
-      <Upload className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+      <Upload className={`w-12 h-12 mx-auto mb-4 ${isDragActive ? 'text-violet-400' : 'text-slate-400'}`} />
       {isDragActive ? (
-        <p className="text-indigo-600">Drop your notes here...</p>
+        <p className="text-violet-400">Drop your notes here...</p>
       ) : (
         <div>
-          <p className="text-gray-600">Drag and drop your notes here, or click to select files</p>
-          <p className="text-sm text-gray-500 mt-2">Supported formats: PDF, DOC, DOCX, TXT</p>
+          <p className="text-slate-300">Drag and drop your notes here, or click to select files</p>
+          <p className="text-sm text-slate-500 mt-2">Supported formats: PDF, DOC, DOCX, TXT</p>
         </div>
       )}
     </div>

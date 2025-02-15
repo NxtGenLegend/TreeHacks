@@ -1,17 +1,20 @@
 import React, { useState } from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, useParams, useNavigate, Navigate } from 'react-router-dom';
 import { GraduationCap } from 'lucide-react';
 import { CourseList } from './components/CourseList';
 import { CourseView } from './components/CourseView';
+import { LoginPage } from './components/LoginPage';
 import type { Course } from './types';
 
 const MOCK_COURSES: Course[] = [
   {
     id: '1',
     name: 'Introduction to Computer Science',
-    description: 'Learn the fundamentals of programming and computer science',
+    startDate: '2024-03-01',
+    endDate: '2024-06-30',
     progress: 75,
     concepts: ['Variables', 'Functions', 'Algorithms', 'Data Types', 'Control Flow', 'Arrays'],
+    highestQuizScore: 85,
     lectures: [
       {
         id: 'l1',
@@ -43,9 +46,11 @@ const MOCK_COURSES: Course[] = [
   {
     id: '2',
     name: 'Linear Algebra',
-    description: 'Master essential mathematical concepts for computer science',
+    startDate: '2024-03-15',
+    endDate: '2024-07-15',
     progress: 45,
     concepts: ['Vectors', 'Matrices', 'Eigenvalues', 'Linear Transformations', 'Vector Spaces'],
+    highestQuizScore: 92,
     lectures: [
       {
         id: 'l2',
@@ -120,12 +125,21 @@ const MOCK_COURSES: Course[] = [
 function App() {
   const [courses, setCourses] = useState(MOCK_COURSES);
 
-  const handleAddCourse = () => {
-    // Implement course addition logic
+  const handleAddCourse = (newCourse: Omit<Course, 'id' | 'progress' | 'concepts' | 'lectures'>) => {
+    const course: Course = {
+      ...newCourse,
+      id: Date.now().toString(),
+      progress: 0,
+      concepts: [],
+      lectures: []
+    };
+    setCourses([...courses, course]);
   };
 
-  const handleEditCourse = (course: Course) => {
-    // Implement course editing logic
+  const handleEditCourse = (updatedCourse: Course) => {
+    setCourses(courses.map(course => 
+      course.id === updatedCourse.id ? updatedCourse : course
+    ));
   };
 
   const handleDeleteCourse = (courseId: string) => {
@@ -133,53 +147,93 @@ function App() {
   };
 
   const handleUploadNote = async (file: File, type: 'lecture' | 'general' | 'exam', lectureId?: string) => {
-    // Implement note upload logic
     console.log('Uploading note:', { file, type, lectureId });
+  };
+
+  const handleUpdateQuizScore = (courseId: string, score: number) => {
+    setCourses(courses.map(course => {
+      if (course.id === courseId) {
+        return {
+          ...course,
+          highestQuizScore: Math.max(score, course.highestQuizScore || 0)
+        };
+      }
+      return course;
+    }));
   };
 
   return (
     <Router>
-      <div className="min-h-screen bg-slate-900">
-        <nav className="bg-slate-800/50 backdrop-blur-md sticky top-0 z-50 border-b border-slate-700/50">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center">
-                <GraduationCap className="w-8 h-8 text-violet-400" />
-                <span className="ml-2 text-xl font-bold bg-gradient-to-r from-violet-400 to-indigo-400 text-transparent bg-clip-text">
-                  SmartStudy Hub
-                </span>
-              </div>
-            </div>
-          </div>
-        </nav>
+      <Routes>
+        <Route path="/login" element={<LoginPage />} />
+        <Route
+          path="/"
+          element={
+            <div className="min-h-screen bg-slate-900">
+              <nav className="bg-slate-800/50 backdrop-blur-md sticky top-0 z-50 border-b border-slate-700/50">
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center">
+                      <GraduationCap className="w-8 h-8 text-violet-400" />
+                      <span className="ml-2 text-xl font-bold bg-gradient-to-r from-violet-400 to-indigo-400 text-transparent bg-clip-text">
+                        SmartStudy Hub
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </nav>
 
-        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <Routes>
-            <Route
-              path="/"
-              element={
+              <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
                 <CourseList
                   courses={courses}
                   onAddCourse={handleAddCourse}
                   onEditCourse={handleEditCourse}
                   onDeleteCourse={handleDeleteCourse}
                 />
-              }
+              </main>
+            </div>
+          }
+        />
+        <Route
+          path="/course/:id"
+          element={
+            <CourseRoute
+              courses={courses}
+              onUploadNote={handleUploadNote}
+              onUpdateQuizScore={handleUpdateQuizScore}
             />
-            <Route
-              path="/course/:id"
-              element={
-                <CourseView
-                  course={courses[1]} // Using Linear Algebra course for demo
-                  onUploadNote={handleUploadNote}
-                />
-              }
-            />
-          </Routes>
-        </main>
-      </div>
+          }
+        />
+      </Routes>
     </Router>
   );
 }
 
-export default App
+function CourseRoute({ 
+  courses, 
+  onUploadNote, 
+  onUpdateQuizScore 
+}: { 
+  courses: Course[],
+  onUploadNote: (file: File, type: 'lecture' | 'general' | 'exam', lectureId?: string) => Promise<void>,
+  onUpdateQuizScore: (courseId: string, score: number) => void
+}) {
+  const { id } = useParams();
+  const navigate = useNavigate();
+  const course = courses.find(c => c.id === id);
+
+  if (!course) {
+    navigate('/');
+    return null;
+  }
+
+  return (
+    <CourseView
+      course={course}
+      onUploadNote={onUploadNote}
+      onUpdateQuizScore={onUpdateQuizScore}
+    />
+  );
+}
+
+export default App;

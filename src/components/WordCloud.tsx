@@ -47,7 +47,7 @@ export function WordCloud({ words, onWordClick, activeWord }: WordCloudProps) {
         .enter().append("text")
         .style("font-size", d => `${d.size}px`)
         .style("font-family", "Inter")
-        .style("fill", d => activeWord ? (d.text === activeWord ? "#4F46E5" : "#9CA3AF") : "#4F46E5")
+        .style("fill", d => activeWord ? (d.text === activeWord ? "#8B5CF6" : "#4B5563") : "#8B5CF6")
         .style("cursor", "pointer")
         .style("transition", "all 0.3s ease")
         .attr("text-anchor", "middle")
@@ -60,7 +60,7 @@ export function WordCloud({ words, onWordClick, activeWord }: WordCloudProps) {
   return (
     <div 
       ref={containerRef} 
-      className="w-full h-[400px] bg-white rounded-lg shadow-lg p-4"
+      className="w-full h-[400px] bg-slate-800/50 rounded-lg p-4"
     />
   );
 }

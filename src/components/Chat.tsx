@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { Send } from 'lucide-react';
 
+const PERPLEXITY_API_KEY = "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";
+
 interface Message {
   id: string;
   content: string;
@@ -25,20 +27,55 @@ export function Chat({ courseId, lectureId }: ChatProps) {
       content: input,
       sender: 'user',
       timestamp: new Date(),
+      
     };
+
 
     setMessages([...messages, userMessage]);
     setInput('');
+    console.log(input);
 
     // Simulate AI response
     setTimeout(() => {
-      const aiMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        content: 'This is a simulated AI response. Replace with actual AI integration.',
-        sender: 'ai',
-        timestamp: new Date(),
+
+      const options = {
+        method: 'POST',
+        headers: {Authorization: 'Bearer ' + PERPLEXITY_API_KEY, 'Content-Type': 'application/json'},
+        body: JSON.stringify({
+          model: 'llama-3.1-sonar-small-128k-chat',
+          messages: [
+            {role: 'system', content: 'Be precise and concise.'},
+            {role: 'user', content: input},
+          ],
+          max_tokens: 123,
+          temperature: 0.2,
+          top_p: 0.9,
+          search_domain_filter: null,
+          return_images: false,
+          return_related_questions: false,
+          search_recency_filter: '<string>',
+          top_k: 0,
+          stream: false,
+          presence_penalty: 0,
+          frequency_penalty: 1,
+          response_format: null,
+        }),
       };
-      setMessages(prev => [...prev, aiMessage]);
+      
+      fetch('https://api.perplexity.ai/chat/completions', options)
+        .then(response => response.json())
+        .then((response) => {
+          const AIRespone = response.choices[0].message.content;
+          console.log('AI Response:', AIRespone);
+          const aiMessage: Message = {
+            id: (Date.now() + 1).toString(),
+            content: AIRespone,
+            sender: 'ai',
+            timestamp: new Date(),
+          };
+          setMessages(prev => [...prev, aiMessage]);
+        })
+        .catch(err => console.error(err));
     }, 1000);
   };
 
