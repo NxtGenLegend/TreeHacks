@@ -14,7 +14,12 @@ import numpy as np
 import celery
 from celery import Celery
 import redis
+import requests
+import json
+import datetime
 from model_manager import ModelManager
+
+PERPLEXITY_API_KEY = "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"
 
 model_manager = ModelManager()
 
@@ -34,6 +39,7 @@ celery_app.conf.update(
     enable_utc=True,
 )
 
+open_client = openai.OpenAI(api_key="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")
 
 class VideoFrame(BaseModel):
     video_data: str
@@ -79,7 +85,7 @@ def search_similar(query):
     return [hit["text"] for hit in results["metadatas"][0]]
 
 def delete_all_embeddings():
-    client.delete_collection("sentences")  # Removes all embeddings
+    client.delete_collection("sentences") 
     collection = client.get_or_create_collection(name="sentences")
     
 def add_embedding(text):
@@ -120,6 +126,87 @@ def add_to_index(file_path: str):
         return {"error": str(e)}
     
 
+# def get_chroma_results(chroma_input: str) -> str:
+#     """Fetch search results from the Chroma API."""
+#     chroma_input = chroma_input.replace(" ", "+")
+#     url = f"http://localhost:8000/search_chroma?query={chroma_input}"
+    
+#     headers = {
+#         "Content-Type": "application/json",
+#         "Accept": "application/json"
+#     }
+    
+#     try:
+#         response = requests.post(url, headers=headers)
+#         response.raise_for_status()  # Raise an error for bad status codes
+        
+#         result = response.json()
+#         print("Search results:", result.get("data", []))
+        
+#         return ", ".join(result.get("data", []))
+    
+#     except requests.RequestException as e:
+#         print("Failed to search Chroma:", str(e))
+    
+#     print(chroma_input)
+#     return ""
+
+def get_perplexity_response(query):
+    url = "https://api.perplexity.ai/chat/completions"
+    
+    chroma_db_results = search_similar(query)
+    headers = {
+        "Authorization": f"Bearer {PERPLEXITY_API_KEY}",
+        "Content-Type": "application/json"
+    }
+    
+    content = []
+    
+    extended_content = [{"type": "text", "text": result} for result in chroma_db_results]
+    
+    content.extend(extended_content)
+    
+    vlm_results = search_vlm_index(query)
+    extended_content_vlm = [{"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{result.base64}"}} for result in vlm_results]
+    content.extend(extended_content_vlm)
+    
+    content.extend([{"type": "text", "text": query}])
+    
+    response = open_client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[
+            {
+                "role": "system",
+                "content": '''You are a helpful assistant for a zoom lecture. You are given a set of screenshots 
+                from the lecture and sentences that the teacher has said. You are also 
+                given a question from the user. You need to answer the question based on the information provided.
+                If there are some sentences or images that are not relevant to the question, you can ignore them. 
+                Answer to the best of your ability. You can say that you don't know if none of the images or sentences are relevant to the question.'''
+            },
+            {
+                "role": "user",
+                "content": content
+            }
+        ],
+        max_tokens=300,
+    )
+    print(response.choices[0])
+    print(response.choices[0].message.content)
+    return {"message": response.choices[0].message.content}
+
+# Example usage
+# chroma_db_results = "This is the retrieved knowledge."
+# user_input = "What is the capital of France?"
+
+# message = get_perplexity_response(user_input)
+# print("Message:", message)
+
+
+# # Example usage
+# chroma_input = "example query"
+# result = get_chroma_results(chroma_input)
+# print("Final Result:", result)
+
 @app.on_event("startup")
 async def startup_event():
     #check if the index exists by checking if the folder exists
@@ -156,6 +243,12 @@ async def search_both_for_chat(query: str):
 #     os.remove(f"/temp_files_for_indexing/temp_frame_{num}.jpg")
 #     return {"message": "Successfully added to index"}
 
+@app.post("/chat_query")
+async def chat_query(request: Request):
+    body = await request.body()
+    query = json.loads(body)['query']
+    message = get_perplexity_response(query)
+    return {"message": message}
 
 @app.post("/convert-video")
 async def convert_video(request: Request):
@@ -198,6 +291,11 @@ async def convert_video(request: Request):
         print(f"Error converting video: {str(e)}")
         return {"error": str(e)}
     
+@app.post("/hello-test")
+async def test_hello(request: Request):
+    body = await request.body()
+    print(body)
+    return {"message": "Hello"}
 
 @app.post("/process-frame")
 async def process_frame(request: Request):
@@ -249,13 +347,17 @@ async def process_frame(request: Request):
         print(f"Error processing frame: {str(e)}")
         return {"error": str(e)}
     
+    
 if __name__ == "__main__":
     #test retreiving from index with search_vlm_index
-    images = search_vlm_index("What is yahia's favorite color?")
-    # iterate through the images and save them locally
-    for i, image in enumerate(images):
-        # Convert base64 string back to bytes before writing
-        image_bytes = base64.b64decode(image.base64)
-        with open(f"temp_frame_{i}.jpg", "wb") as f:
-            f.write(image_bytes)
-    
+    # images = search_vlm_index("What is yahia's favorite color?")
+    # # iterate through the images and save them locally
+    # for i, image in enumerate(images):
+    #     # Convert base64 string back to bytes before writing
+    #     image_bytes = base64.b64decode(image.base64)
+    #     with open(f"temp_frame_{i}.jpg", "wb") as f:
+    #         f.write(image_bytes)
+    delete_all_embeddings()
+
+
+
