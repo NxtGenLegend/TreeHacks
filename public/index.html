@@ -1,0 +1,209 @@
+<!doctype html>
+<html>
+    <head>
+        <title>Video Meeting</title>
+        <link rel="stylesheet" href="/css/styles.css">
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    </head>
+    <body>
+        <div class="container">
+            <div class="main-content">
+                <div class="meeting-header">
+                    <div class="logo-container">
+                        <h1 class="logo">ZoneOut</h1>
+                        <span class="logo-subtitle">Saving You When You Doze Off!</span>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <div class="url-container">
+                        <!-- <label>Provide Webhook URL. To know more about Zoom Webhooks, visit <a href="https://developers.zoom.us/docs/api/webhooks/" target="_blank">here</a>.</label> -->
+
+                        <input type="text" id="webhookUrl" placeholder="Enter Webhook URL" />
+                        <button id="validateBtn">
+                            <i class="fas fa-check-circle"></i> Validate
+                        </button>
+                    </div>
+                </div>
+
+                <div class="video-container">
+                    <video id="mediaVideo" autoplay playsinline muted></video>
+                    <audio id="mediaAudio" autoplay></audio>
+                </div>
+
+                <div class="controls">
+                    <button id="sendBtn" disabled class="control-button start-button">
+                        <i class="fas fa-play"></i>
+                    </button>
+                    <button id="endBtn" disabled class="control-button end-button">
+                        <i class="fas fa-stop"></i>
+                    </button>
+                    
+                    <!-- Hidden buttons to maintain functionality -->
+                    <button id="pauseBtn" disabled style="display: none;">
+                        <i class="fas fa-pause"></i> Pause RTMS
+                    </button>
+                    <button id="resumeBtn" disabled style="display: none;">
+                        <i class="fas fa-play"></i> Resume RTMS
+                    </button>
+                    <button id="stopBtn" disabled style="display: none;">
+                        <i class="fas fa-stop"></i> Stop RTMS
+                    </button>
+                    <button id="startRtmsBtn" disabled style="display: none;">
+                        <i class="fas fa-play-circle"></i> Start RTMS
+                    </button>
+                </div>
+            </div>
+
+            <div class="sidebar">
+                <div class="chat-header">Ask Any Meeting Related Questions Below!</div>
+                <div class="log-tabs">
+                    <button class="tab-button active" data-tab="chat">Chat</button>
+                    <!-- <button class="tab-button" data-tab="transcripts">Transcripts</button>
+                    <button class="tab-button" data-tab="logs">Logs</button> -->
+                </div>
+
+                <div id="chat-container" class="logs-container">
+                    <div id="chat-messages"></div>
+                    <div class="chat-input-container">
+                        <input type="text" id="chat-input" placeholder="Type a message..." />
+                        <button id="chat-send">
+                            <i class="fas fa-paper-plane"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <div id="transcripts-container" class="logs-container" style="display: none;">
+                    <div id="transcript"></div>
+                </div>
+
+                <div id="logs-container" class="logs-container" style="display: none;">
+                    <div id="system-logs"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Configuration -->
+        <script src="/js/config.js"></script>
+        
+        <!-- API Handler -->
+        <script src="/js/api.js"></script>
+        
+        <!-- Core functionality -->
+        <script src="/js/mediaHandler.js"></script>
+        <script src="/js/webSocket.js"></script>
+        
+        <!-- UI and Controls -->
+        <script src="/js/uiController.js"></script>
+
+        <!-- Audio Processing -->
+        <script src="/js/audio-processor.js"></script>
+
+        <script>
+            // Handle tabs
+            document.querySelectorAll('.tab-button').forEach(button => {
+                button.addEventListener('click', () => {
+                    // Update active tab
+                    document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+                    button.classList.add('active');
+
+                    // Show/hide containers
+                    const tabName = button.dataset.tab;
+                    document.getElementById('transcripts-container').style.display = 
+                        tabName === 'transcripts' ? 'block' : 'none';
+                    document.getElementById('logs-container').style.display = 
+                        tabName === 'logs' ? 'block' : 'none';
+                });
+            });
+
+            // Function to add transcript
+            function addTranscript(text) {
+                const transcriptDiv = document.getElementById('transcript');
+                const entry = document.createElement('div');
+                entry.className = 'transcript-entry';
+                
+                const timestamp = document.createElement('div');
+                timestamp.className = 'transcript-timestamp';
+                timestamp.textContent = new Date().toLocaleTimeString();
+                
+                const content = document.createElement('div');
+                content.textContent = text;
+                
+                entry.appendChild(timestamp);
+                entry.appendChild(content);
+                transcriptDiv.appendChild(entry);
+            }
+
+            // Add this after your existing tab handling code
+            document.getElementById('chat-send').addEventListener('click', sendChatMessage);
+            document.getElementById('chat-input').addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    sendChatMessage();
+                }
+            });
+
+            function sendChatMessage() {
+                const input = document.getElementById('chat-input');
+                const message = input.value.trim();
+                
+                if (message) {
+                    // Add message to chat UI
+                    addChatMessage(message, 'sent');
+                    
+                    // Send message through WebSocket with the same format as transcript
+                    if (RTMSState.mediaSocket?.readyState === WebSocket.OPEN) {
+                        RTMSState.mediaSocket.send(JSON.stringify({
+                            msg_type: "MEDIA_DATA_TRANSCRIPT",
+                            content: {
+                                user_id: 0,
+                                data: message,
+                                timestamp: Date.now()
+                            }
+                        }));
+                    }
+
+                    // Send POST request to test-hello endpoint
+                    fetch('http://localhost:8010/chat_query', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            query: message
+                        })
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        // Add the response to the chat as a received message
+                        if (data.message) {
+                            addChatMessage(data.message, 'received');
+                        }
+                    })
+                    .catch(error => console.error('Error sending to test-hello:', error));
+                    
+                    input.value = '';
+                }
+            }
+
+            function addChatMessage(text, type = 'sent') {
+                const messagesDiv = document.getElementById('chat-messages');
+                const messageDiv = document.createElement('div');
+                messageDiv.className = `chat-message ${type}`;
+                
+                const content = document.createElement('div');
+                content.textContent = typeof text === 'object' && text.message ? text.message : text;
+
+                const timestamp = document.createElement('div');
+                timestamp.className = 'chat-timestamp';
+                timestamp.textContent = new Date().toLocaleTimeString();
+                
+                messageDiv.appendChild(content);
+                messageDiv.appendChild(timestamp);
+                messagesDiv.appendChild(messageDiv);
+                
+                // Scroll to bottom
+                messagesDiv.scrollTop = messagesDiv.scrollHeight;
+            }
+        </script>
+    </body>
+</html>
