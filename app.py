@@ -49,7 +49,6 @@ TIME_BETWEEN_FRAMES = 5
 last_frame_timestamp = time.time()
 
 # RAG = RAGMultiModalModel.from_pretrained(pretrained_model_name_or_path="/Users/yahiasalman/Desktop/RetainAll/RetainBackend/app/models/colqwen2-v1.0", index_root="./index", device="mps")
-# RAG = RAGMultiModalModel.from_index("./TreeIndex", index_root="./index", device="mps")
 RAG = model_manager.get_model(device="mps")
 # RAG.index(input_path="./saved_frame.jpg", index_name="TreeIndex", store_collection_with_index=True, overwrite=True)
 
