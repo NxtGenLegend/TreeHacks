@@ -111,8 +111,6 @@ then you can run
 
 and the server should start running on port 8010
 
-Make sure that you have redis and celery installed.!
-
-```
+Make sure that you have redis and celery installed!
 
 
