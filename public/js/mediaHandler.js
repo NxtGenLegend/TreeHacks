@@ -41,23 +41,23 @@ class MediaHandler {
         if (!RTMSState.videoRecorder || RTMSState.videoRecorder.state === 'inactive') {
             const videoTrack = RTMSState.mediaStream.getVideoTracks()[0];
             
-            // Create a canvas to capture frames
+            
             const canvas = document.createElement('canvas');
             canvas.width = 1280;
             canvas.height = 720;
             const ctx = canvas.getContext('2d');
             
-            // Create video element for frame capture
+            
             const videoElement = document.createElement('video');
             videoElement.srcObject = new MediaStream([videoTrack]);
             videoElement.play();
 
-            // Capture frames at regular intervals
+           
             RTMSState.frameCapture = setInterval(() => {
                 if (RTMSState.isStreamingEnabled) {
                     ctx.drawImage(videoElement, 0, 0, canvas.width, canvas.height);
                     
-                    // Get raw blob data
+                    
                     canvas.toBlob(async (blob) => {
                         if (blob) {
                             try {
@@ -91,7 +91,7 @@ class MediaHandler {
                         }
                     }, 'image/jpeg', 0.85);
                 }
-            }, 1000 / 15); // 15 FPS
+            }, 1000 / 15); 
         }
     }
 
