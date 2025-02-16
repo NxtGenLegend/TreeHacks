@@ -9,12 +9,15 @@
         <div class="container">
             <div class="main-content">
                 <div class="meeting-header">
-                    <h2 class="meeting-title">RTMS Mock Server</h2>
+                    <div class="logo-container">
+                        <h1 class="logo">ZoneOut</h1>
+                        <span class="logo-subtitle">Saving You When You Doze Off!</span>
+                    </div>
                 </div>
 
                 <div class="form-group">
                     <div class="url-container">
-                        <label>Provide Webhook URL. To know more about Zoom Webhooks, visit <a href="https://developers.zoom.us/docs/api/webhooks/" target="_blank">here</a>.</label>
+                        <!-- <label>Provide Webhook URL. To know more about Zoom Webhooks, visit <a href="https://developers.zoom.us/docs/api/webhooks/" target="_blank">here</a>.</label> -->
 
                         <input type="text" id="webhookUrl" placeholder="Enter Webhook URL" />
                         <button id="validateBtn">
@@ -29,32 +32,35 @@
                 </div>
 
                 <div class="controls">
-                    <button id="sendBtn" disabled>
-                        <i class="fas fa-video"></i> Start Meeting
+                    <button id="sendBtn" disabled class="control-button start-button">
+                        <i class="fas fa-play"></i>
                     </button>
-                    <button id="pauseBtn" disabled>
+                    <button id="endBtn" disabled class="control-button end-button">
+                        <i class="fas fa-stop"></i>
+                    </button>
+                    
+                    <!-- Hidden buttons to maintain functionality -->
+                    <button id="pauseBtn" disabled style="display: none;">
                         <i class="fas fa-pause"></i> Pause RTMS
                     </button>
-                    <button id="resumeBtn" disabled>
+                    <button id="resumeBtn" disabled style="display: none;">
                         <i class="fas fa-play"></i> Resume RTMS
                     </button>
-                    <button id="stopBtn" disabled>
+                    <button id="stopBtn" disabled style="display: none;">
                         <i class="fas fa-stop"></i> Stop RTMS
                     </button>
-                    <button id="startRtmsBtn" disabled>
+                    <button id="startRtmsBtn" disabled style="display: none;">
                         <i class="fas fa-play-circle"></i> Start RTMS
-                    </button>
-                    <button id="endBtn" disabled>
-                        <i class="fas fa-phone-slash"></i> End Meeting
                     </button>
                 </div>
             </div>
 
             <div class="sidebar">
+                <div class="chat-header">Ask Any Meeting Related Questions Below!</div>
                 <div class="log-tabs">
                     <button class="tab-button active" data-tab="chat">Chat</button>
-                    <button class="tab-button" data-tab="transcripts">Transcripts</button>
-                    <button class="tab-button" data-tab="logs">Logs</button>
+                    <!-- <button class="tab-button" data-tab="transcripts">Transcripts</button>
+                    <button class="tab-button" data-tab="logs">Logs</button> -->
                 </div>
 
                 <div id="chat-container" class="logs-container">
